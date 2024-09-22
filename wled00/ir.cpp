@@ -13,7 +13,7 @@ void handleIR(){}
 IRrecv* irrecv;
 //change pin in NpbWrapper.h
 
-decode_results results;
+decode_results results; 
 
 unsigned long irCheckedTime = 0;
 uint32_t lastValidCode = 0;
