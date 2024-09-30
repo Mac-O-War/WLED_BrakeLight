@@ -2,11 +2,10 @@
 
 #include "wled.h"
 
-
 class UsermodBreakLight : public Usermod {
 
   private:
-   bool enabled = true;
+    bool enabled = true;
     bool initDone = false;
     unsigned long lastTime = 0;
     unsigned long brakeLightSetTime = 0;
@@ -14,10 +13,10 @@ class UsermodBreakLight : public Usermod {
     int travelAxis;    
     bool invertAxis;
     
-    long engageBrakeLighGeForce;
+    long engageBrakeLightGeForce;
     long maxBrightnessGeForce;   
     long disengageBrakeLightGeForce;
-    long stoppedRedDuration;
+    long stayOnDuration;
 
     long xAccl = 0;
     long yAccl = 0;
@@ -27,15 +26,15 @@ class UsermodBreakLight : public Usermod {
     // string that are used multiple time (this will save some flash memory)
     static const char _name[];
     static const char _enabled[];
+    
 
-    void publishMqtt(const char* state, bool retain = false); 
-
+    void publishMqtt(const char* state, bool retain = false);
 
   public:
     /**
      * Enable/Disable the usermod
      */
-    inline void enable(bool enable) { enabled = enable; }
+    inline void enable(bool penable) { this->enabled = penable; }
 
     /**
      * Get usermod enabled/disabled state
@@ -54,11 +53,13 @@ class UsermodBreakLight : public Usermod {
       Wire.beginTransmission(Addr); // Start I2C Transmission      
       Wire.write(0x0F);             // Select range selection register      
       Wire.write(0x03);             // Set range +/- 2g      
+      //Wire.write(0x05);             // Set range +/- 4g      
       Wire.endTransmission();       // Stop I2C Transmission
       
       Wire.beginTransmission(Addr); // Start I2C Transmission      
       Wire.write(0x10);             // Select bandwidth register      
       Wire.write(0x08);             // Set bandwidth 7.81 Hz      
+      //Wire.write(0x09);             // Set bandwidth 15.63 Hz 
       Wire.endTransmission();       // Stop I2C Transmission
       delay(300);
       initDone = true;
@@ -95,17 +96,17 @@ class UsermodBreakLight : public Usermod {
     data[5] = Wire.read();
     
     // Convert the data to 10 bits
-    xAccl = ((data[1] * 256.0) + (data[0] & 0xC0)) / 64;
+    xAccl = ((data[1] * 256) + (data[0] & 0xC0)) / 64;
     if (xAccl > 511)
     {
       xAccl -= 1024;
     }
-    yAccl = ((data[3] * 256.0) + (data[2] & 0xC0)) / 64;
+    yAccl = ((data[3] * 256) + (data[2] & 0xC0)) / 64;
     if (yAccl > 511)
     {
       yAccl -= 1024;
     }
-    zAccl = ((data[5] * 256.0) + (data[4] & 0xC0)) / 64;
+    zAccl = ((data[5] * 256) + (data[4] & 0xC0)) / 64;
     if (zAccl > 511)
     {
       zAccl -= 1024;
@@ -123,7 +124,7 @@ class UsermodBreakLight : public Usermod {
 
       unsigned long nowTime = millis();
       bool recalcBrakeLight = (nowTime - lastTime > 30);
-      bool turnOffBrakeLight = (nowTime - brakeLightSetTime > stoppedRedDuration);
+      bool turnOffBrakeLight = (nowTime - brakeLightSetTime > stayOnDuration);
 
       if(turnOffBrakeLight)
         breakBrightness = 0;
@@ -149,16 +150,21 @@ class UsermodBreakLight : public Usermod {
           travelAccl = -travelAccl;
         
         long brightnesss;
-        if(travelAccl < engageBrakeLighGeForce)
+        if(travelAccl < engageBrakeLightGeForce)
           brightnesss = 0;
         else
-          brightnesss = map(travelAccl, engageBrakeLighGeForce, maxBrightnessGeForce, 0, 255);
+        {
+          brightnesss = map(travelAccl, engageBrakeLightGeForce, maxBrightnessGeForce, 0, 255);
+          //effectCurrent =
+          //unloadPlaylist();
+          //applyPreset(2, CALL_MODE_BUTTON_PRESET);
+        }
 #if 0
         Serial.print(brightnesss);        
         Serial.print("=map(");
         Serial.print(travelAccl);
         Serial.print(",");
-        Serial.print(engageBrakeLighGeForce);
+        Serial.print(engageBrakeLightGeForce);
         Serial.print(",");
         Serial.print(maxBrightnessGeForce);
         Serial.print(",");
@@ -209,13 +215,16 @@ class UsermodBreakLight : public Usermod {
      */
     void addToJsonState(JsonObject& root)
     {
-      if (!initDone || !enabled) return;  // prevent crash on boot applyPreset()
+      if (!initDone || !enabled) 
+        return;  // prevent crash on boot applyPreset()
 
       JsonObject usermod = root[FPSTR(_name)];
       if (usermod.isNull()) usermod = root.createNestedObject(FPSTR(_name));
 
       //usermod["user0"] = userVar0;
     }
+
+    
 
 
     /*
@@ -224,7 +233,8 @@ class UsermodBreakLight : public Usermod {
      */
     void readFromJsonState(JsonObject& root)
     {
-      if (!initDone) return;  // prevent crash on boot applyPreset()
+      if (!initDone) 
+        return;  // prevent crash on boot applyPreset()
 
       JsonObject usermod = root[FPSTR(_name)];
       if (!usermod.isNull()) {
@@ -279,9 +289,9 @@ class UsermodBreakLight : public Usermod {
       top["invertAxis"] = invertAxis;
       top["travelAxis"] = travelAxis;
       top["disengageBrakeLightGeForce"] = disengageBrakeLightGeForce;
-      top["engageBrakeLighGeForce"] = engageBrakeLighGeForce;
-      top["maxBrightnessGeForce"]   = maxBrightnessGeForce;
-      top["stoppedRedDuration"]     = stoppedRedDuration;      
+      top["engageBrakeLightGeForce"]    = engageBrakeLightGeForce;
+      top["maxBrightnessGeForce"]       = maxBrightnessGeForce;
+      top["stayOnDuration"]         = stayOnDuration;      
     }
 
 
@@ -304,15 +314,15 @@ class UsermodBreakLight : public Usermod {
     {
       JsonObject top = root[FPSTR(_name)];
       bool configComplete = !top.isNull();
+      configComplete &= getJsonValue(top[FPSTR(_enabled)], enabled);
       configComplete &= getJsonValue(top["travelAxis"], travelAxis, 2);  
       configComplete &= getJsonValue(top["invertAxis"], invertAxis, false);    
-      configComplete &= getJsonValue(top["engageBrakeLighGeForce"], engageBrakeLighGeForce, 300);
-      configComplete &= getJsonValue(top["maxBrightnessGeForce"], maxBrightnessGeForce, 500);      
-      configComplete &= getJsonValue(top["disengageBrakeLightGeForce"], disengageBrakeLightGeForce, -200);
-      configComplete &= getJsonValue(top["stoppedRedDuration"], stoppedRedDuration, 2500);      
+      configComplete &= getJsonValue(top["engageBrakeLightGeForce"], engageBrakeLightGeForce, 80);
+      configComplete &= getJsonValue(top["maxBrightnessGeForce"], maxBrightnessGeForce, 130);      
+      configComplete &= getJsonValue(top["disengageBrakeLightGeForce"], disengageBrakeLightGeForce, -60);
+      configComplete &= getJsonValue(top["stayOnDuration"], stayOnDuration, 2500);      
       return configComplete;
     }
-
 
     /*
      * appendConfigData() is called when user enters usermod settings page
@@ -321,8 +331,12 @@ class UsermodBreakLight : public Usermod {
      */
     void appendConfigData()
     {
-      oappend(SET_F("addInfo('")); oappend(String(FPSTR(_name)).c_str()); oappend(SET_F("'")); 
-      oappend(SET_F("dd=addDropdown('")); oappend(String(FPSTR(_name)).c_str()); oappend(SET_F("','travelAxis');")); 
+      oappend(SET_F("addInfo('BrakeLight:engageBrakeLightGeForce',    1, 'g-froce');"));
+      oappend(SET_F("addInfo('BrakeLight:disengageBrakeLightGeForce', 1, 'g-force');"));
+      oappend(SET_F("addInfo('BrakeLight:maxBrightnessGeForce',       1, 'g-force');"));
+      oappend(SET_F("addInfo('BrakeLight:stayOnDuration',             1, 'milliseconds');")); 
+     
+      oappend(SET_F("dd=addDropdown('BrakeLight','travelAxis');")); 
       oappend(SET_F("addOption(dd,'X',0);"));
       oappend(SET_F("addOption(dd,'Y',1);"));
       oappend(SET_F("addOption(dd,'Z',2);"));
@@ -433,7 +447,7 @@ class UsermodBreakLight : public Usermod {
 
 
 // add more strings here to reduce flash memory usage
-const char UsermodBreakLight::_name[]    PROGMEM = "Brake Light";
+const char UsermodBreakLight::_name[]    PROGMEM = "BrakeLight";
 const char UsermodBreakLight::_enabled[] PROGMEM = "enabled";
 
 
