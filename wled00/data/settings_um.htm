@@ -253,6 +253,21 @@
 		}
 		return null;
 	}
+
+	function addSlider(ufld,min,max,step) {
+		let arr = d.getElementsByName(ufld);		
+		let fe = arr[0];
+		fe.setAttribute('type', 'range');1
+		fe.setAttribute('min', min);
+		fe.setAttribute('max', max);
+		//fe.setAttribute('value', value);
+		fe.setAttribute('step', step);    
+    	//fe.setAttribute('oninput', "this.nextElementSibling.value=this.value");    
+    	var el = document.createElement("output");
+    	el.innerHTML = fe.value 
+  		fe.parentNode.insertBefore(el, fe.nextSibling);
+	}
+
 	function addOption(sel,txt,val) {
 		if (sel===null) return; // select object missing
 		let opt = d.createElement("option");
@@ -265,6 +280,7 @@
 		}
 		return opt;
 	}
+	
 	// https://stackoverflow.com/questions/26440494/insert-text-after-this-input-element-with-javascript
 	function addInfo(name,el,txt, txt2="") {
 		let obj = d.getElementsByName(name);
@@ -275,6 +291,7 @@
 			if (txt2!="") obj[el].insertAdjacentHTML('beforebegin', txt2 + '&nbsp;');  //add pre texts
 		}
 	}
+
 	// add Help Button
 	function addHB(um) {
 		addInfo(um + ':help',0,`<button onclick="location.href='https://kno.wled.ge/usermods/${um}'" type="button">?</button>`);
